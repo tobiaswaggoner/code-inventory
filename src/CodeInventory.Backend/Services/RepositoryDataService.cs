@@ -60,6 +60,8 @@ public class RepositoryDataService : IRepositoryDataService
         var existingProject = await _context.Projects
             .FirstOrDefaultAsync(p => p.InitialCommitSha == initialCommitSha, cancellationToken);
 
+        existingProject ??= _context.Projects.Local.FirstOrDefault(p => p.InitialCommitSha == initialCommitSha);
+        
         if (existingProject != null)
         {
             _logger.LogDebug("Found existing project {ProjectName} with initial commit SHA: {Sha}", existingProject.Name, initialCommitSha);
@@ -86,6 +88,8 @@ public class RepositoryDataService : IRepositoryDataService
         var existingLocation = await _context.ProjectLocations
             .FirstOrDefaultAsync(pl => pl.ProjectId == projectId && pl.Path == path, cancellationToken);
 
+        existingLocation ??= _context.ProjectLocations.Local.FirstOrDefault(pl => pl.ProjectId == projectId && pl.Path == path);
+        
         if (existingLocation != null)
         {
             // Update existing location
@@ -136,7 +140,7 @@ public class RepositoryDataService : IRepositoryDataService
             {
                 Sha = commitData.Sha,
                 Message = commitData.Message,
-                AuthorTimestamp = commitData.AuthorTimestamp,
+                AuthorTimestamp = commitData.AuthorTimestamp.ToUniversalTime(),
                 AuthorId = author.Id,
                 ProjectId = projectId
             };
@@ -151,17 +155,15 @@ public class RepositoryDataService : IRepositoryDataService
         // Try to find existing author by email (deduplication by email)
         var existingAuthor = await _context.Authors
             .FirstOrDefaultAsync(a => a.Email == authorEmail, cancellationToken);
+        
+        existingAuthor ??= _context.Authors.Local.FirstOrDefault(a => a.Email == authorEmail);
 
         if (existingAuthor != null)
         {
-            // Update name if it's different (in case the author changed their name)
-            if (existingAuthor.Name != authorName && !string.IsNullOrEmpty(authorName))
-            {
-                existingAuthor.Name = authorName;
-                _logger.LogTrace("Updated author name for {Email}: {Name}", authorEmail, authorName);
-            }
-            return existingAuthor;
+                return existingAuthor;
         }
+        
+        _logger.LogWarning("Creating new author {AuthorName}", authorName);
 
         // Create new author
         var author = new Author

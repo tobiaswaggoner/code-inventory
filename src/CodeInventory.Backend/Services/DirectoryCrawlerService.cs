@@ -9,27 +9,18 @@ public class DirectoryCrawlerService : BackgroundService
     private readonly ILogger<DirectoryCrawlerService> _logger;
     private readonly CrawlSettings _crawlSettings;
     private readonly ICrawlTriggerService _triggerService;
-    private readonly IDelayProvider _delayProvider;
-    private readonly IRepositoryScanner _repositoryScanner;
-    private readonly IGitIntegrationService _gitIntegrationService;
-    private readonly IRepositoryDataService _repositoryDataService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public DirectoryCrawlerService(
         ILogger<DirectoryCrawlerService> logger,
         IOptions<CrawlSettings> crawlSettings,
         ICrawlTriggerService triggerService,
-        IDelayProvider delayProvider,
-        IRepositoryScanner repositoryScanner,
-        IGitIntegrationService gitIntegrationService,
-        IRepositoryDataService repositoryDataService)
+        IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
         _crawlSettings = crawlSettings.Value;
         _triggerService = triggerService;
-        _delayProvider = delayProvider;
-        _repositoryScanner = repositoryScanner;
-        _gitIntegrationService = gitIntegrationService;
-        _repositoryDataService = repositoryDataService;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,15 +29,17 @@ public class DirectoryCrawlerService : BackgroundService
         
         while (!stoppingToken.IsCancellationRequested)
         {
+            using var scope = _scopeFactory.CreateScope();
             try
             {
+                
                 // Wait for trigger
                 var triggered = await _triggerService.WaitForTriggerAsync(stoppingToken);
                 
                 if (triggered && !stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogInformation("DirectoryCrawlerService: Crawl triggered, starting execution...");
-                    await StartCrawling(stoppingToken);
+                    await StartCrawling(stoppingToken, scope);
                     _triggerService.CompleteCrawl();
                 }
             }
@@ -63,7 +56,8 @@ public class DirectoryCrawlerService : BackgroundService
                 // Wait a bit before next trigger check
                 try
                 {
-                    await _delayProvider.DelayAsync(5000, stoppingToken);
+                    var delayProvider = scope.ServiceProvider.GetRequiredService<IDelayProvider>();
+                    await delayProvider.DelayAsync(5000, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -74,7 +68,7 @@ public class DirectoryCrawlerService : BackgroundService
         }
     }
 
-    private async Task StartCrawling(CancellationToken stoppingToken)
+    private async Task StartCrawling(CancellationToken stoppingToken, IServiceScope scope)
     {
         _logger.LogInformation("DirectoryCrawlerService: Starting crawl of {DirectoryCount} root directories and {UrlCount} remote URLs",
             _crawlSettings.RootDirectories.Count,
@@ -91,8 +85,10 @@ public class DirectoryCrawlerService : BackgroundService
             {
                 _logger.LogInformation("DirectoryCrawlerService: Scanning {DirectoryCount} root directories for Git repositories", _crawlSettings.RootDirectories.Count);
                 
-                var repositoryPaths = await _repositoryScanner.GetGitRepositoryPathsAsync(_crawlSettings.RootDirectories, stoppingToken);
-                totalRepositories = repositoryPaths.Count();
+                var repositoryScanner = scope.ServiceProvider.GetRequiredService<IRepositoryScanner>();
+                var repositoryPaths = (await repositoryScanner.GetGitRepositoryPathsAsync(_crawlSettings.RootDirectories, stoppingToken))
+                    .ToList();
+                totalRepositories = repositoryPaths.Count;
                 
                 _logger.LogInformation("DirectoryCrawlerService: Found {RepositoryCount} Git repositories", totalRepositories);
 
@@ -110,12 +106,14 @@ public class DirectoryCrawlerService : BackgroundService
                         _logger.LogDebug("DirectoryCrawlerService: Processing repository: {Path}", repositoryPath);
 
                         // Extract Git data from repository
-                        var repositoryData = await _gitIntegrationService.ExtractProjectDataAsync(repositoryPath, stoppingToken);
+                        var gitIntegrationService = scope.ServiceProvider.GetRequiredService<IGitIntegrationService>();
+                        var repositoryData = await gitIntegrationService.ExtractProjectDataAsync(repositoryPath, stoppingToken);
                         
                         if (repositoryData != null)
                         {
                             // Save to database
-                            await _repositoryDataService.SaveRepositoryDataAsync(repositoryData, stoppingToken);
+                            var repositoryDataService = scope.ServiceProvider.GetRequiredService<IRepositoryDataService>();
+                            await repositoryDataService.SaveRepositoryDataAsync(repositoryData, stoppingToken);
                             
                             totalCommits += repositoryData.Commits.Count();
                             _logger.LogInformation("DirectoryCrawlerService: Successfully processed {ProjectName} with {CommitCount} commits", 
@@ -128,7 +126,8 @@ public class DirectoryCrawlerService : BackgroundService
                         }
 
                         // Small delay between repositories to avoid overwhelming the system
-                        await _delayProvider.DelayAsync(100, stoppingToken);
+                        var delayProvider = scope.ServiceProvider.GetRequiredService<IDelayProvider>();
+                        await delayProvider.DelayAsync(100, stoppingToken);
                     }
                     catch (Exception ex)
                     {
@@ -151,7 +150,7 @@ public class DirectoryCrawlerService : BackgroundService
             }
 
             // Step 4: Log final statistics
-            var finalStats = await GetCrawlStatisticsAsync(stoppingToken);
+            var finalStats = await GetCrawlStatisticsAsync(stoppingToken, scope);
             
             _logger.LogInformation("DirectoryCrawlerService: Crawl completed successfully. " +
                                  "Processed {ProcessedRepos} repositories, {ProcessedCommits} commits, {Errors} errors. " +
@@ -166,13 +165,14 @@ public class DirectoryCrawlerService : BackgroundService
         }
     }
 
-    private async Task<CrawlStatistics> GetCrawlStatisticsAsync(CancellationToken stoppingToken)
+    private async Task<CrawlStatistics> GetCrawlStatisticsAsync(CancellationToken stoppingToken, IServiceScope scope)
     {
         try
         {
-            var projectCount = await _repositoryDataService.GetRepositoryCountAsync(stoppingToken);
-            var commitCount = await _repositoryDataService.GetCommitCountAsync(stoppingToken);
-            var authorCount = await _repositoryDataService.GetAuthorCountAsync(stoppingToken);
+            var repositoryDataService = scope.ServiceProvider.GetRequiredService<IRepositoryDataService>();
+            var projectCount = await repositoryDataService.GetRepositoryCountAsync(stoppingToken);
+            var commitCount = await repositoryDataService.GetCommitCountAsync(stoppingToken);
+            var authorCount = await repositoryDataService.GetAuthorCountAsync(stoppingToken);
 
             return new CrawlStatistics
             {

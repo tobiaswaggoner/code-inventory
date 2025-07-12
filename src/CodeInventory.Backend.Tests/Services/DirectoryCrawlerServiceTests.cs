@@ -5,6 +5,7 @@ using NUnit.Framework;
 using CodeInventory.Backend.Services;
 using CodeInventory.Common.Configuration;
 using CodeInventory.Common.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeInventory.Backend.Tests.Services;
 
@@ -18,6 +19,9 @@ public class DirectoryCrawlerServiceTests
     private IRepositoryScanner _repositoryScanner;
     private IGitIntegrationService _gitIntegrationService;
     private IRepositoryDataService _repositoryDataService;
+    private IServiceProvider _serviceProvider;
+    private IServiceScopeFactory _serviceScopeFactory;
+    private IServiceScope _scope;
     private DirectoryCrawlerService _service;
 
     [SetUp]
@@ -28,6 +32,16 @@ public class DirectoryCrawlerServiceTests
         _repositoryScanner = Substitute.For<IRepositoryScanner>();
         _gitIntegrationService = Substitute.For<IGitIntegrationService>();
         _repositoryDataService = Substitute.For<IRepositoryDataService>();
+        _serviceScopeFactory = Substitute.For<IServiceScopeFactory>();
+        _serviceProvider = Substitute.For<IServiceProvider>();
+        _scope = Substitute.For<IServiceScope>();
+        
+        _serviceScopeFactory.CreateScope().Returns(_scope);
+        _scope.ServiceProvider.Returns(_serviceProvider);
+        _serviceProvider.GetService<IDelayProvider>().Returns(_delayProvider);
+        _serviceProvider.GetService<IRepositoryScanner>().Returns(_repositoryScanner);
+        _serviceProvider.GetService<IGitIntegrationService>().Returns(_gitIntegrationService);
+        _serviceProvider.GetService<IRepositoryDataService>().Returns(_repositoryDataService);
         
         var crawlSettings = new CrawlSettings
         {
@@ -38,7 +52,7 @@ public class DirectoryCrawlerServiceTests
         
         _triggerService = Substitute.For<ICrawlTriggerService>();
         
-        _service = new DirectoryCrawlerService(_logger, _crawlSettings, _triggerService, _delayProvider, _repositoryScanner, _gitIntegrationService, _repositoryDataService);
+        _service = new DirectoryCrawlerService(_logger, _crawlSettings, _triggerService, _serviceScopeFactory);
     }
 
     [Test]

@@ -178,7 +178,12 @@ public class RepositoryScanner : IRepositoryScanner
             "cache",
             ".cache",
             "logs",
-            "log"
+            "log",
+            ".venv",
+            "PackageCache",
+            "Artifacts",
+            "Library",
+            "opensource"
         };
 
         return skipDirectories.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
