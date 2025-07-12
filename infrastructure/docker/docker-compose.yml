@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: code-inventory-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-codeinventory}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev123456}
+      POSTGRES_DB: ${POSTGRES_DB:-codeinventory}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codeinventory} -d ${POSTGRES_DB:-codeinventory}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - code-inventory-network
+
+  postgres-test:
+    image: postgres:17
+    container_name: code-inventory-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_TEST_USER:-codeinventory_test}
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:-test123456}
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-codeinventory_test}
+    ports:
+      - "${POSTGRES_TEST_PORT:-5433}:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_TEST_USER:-codeinventory_test} -d ${POSTGRES_TEST_DB:-codeinventory_test}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - code-inventory-network
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_test_data:
+    driver: local
+
+networks:
+  code-inventory-network:
+    driver: bridge

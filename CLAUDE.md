@@ -31,32 +31,48 @@ The system uses commit SHA hashes as primary keys to ensure global deduplication
 
 ## Development Commands
 
-Since the project is not yet implemented, standard .NET commands will be used:
-
+### Basic .NET Commands
 ```bash
 # Build the solution
 dotnet build
 
+# Run tests
+dotnet test
+
 # Run the backend API
-dotnet run --project CodeInventory.Backend
+dotnet run --project src/CodeInventory.Backend
 
 # Run the Blazor frontend
-dotnet run --project CodeInventory.WebApp
-
-# Create and apply EF migrations
-dotnet ef migrations add [MigrationName] --startup-project CodeInventory.Backend
-dotnet ef database update --startup-project CodeInventory.Backend
+dotnet run --project src/CodeInventory.WebApp
 
 # Run with crawler execution
-dotnet run --project CodeInventory.Backend -- -execute-crawl
+dotnet run --project src/CodeInventory.Backend -- -execute-crawl
+```
+
+### Database Commands
+```bash
+# Start PostgreSQL databases
+docker compose -f infrastructure/docker/docker-compose.yml up -d
+
+# Stop databases
+docker compose -f infrastructure/docker/docker-compose.yml down
+
+# View database logs
+docker compose -f infrastructure/docker/docker-compose.yml logs postgres
+
+# Create and apply EF migrations
+dotnet ef migrations add [MigrationName] --startup-project src/CodeInventory.Backend
+dotnet ef database update --startup-project src/CodeInventory.Backend
 ```
 
 ## Infrastructure
 
 ### Database Setup
-PostgreSQL runs via Docker Compose with configuration stored in `.env` files:
-- Development database on standard port 5432
-- Separate test database for testing scenarios
+PostgreSQL runs via Docker Compose in `infrastructure/docker/`:
+- **Development database**: Port 5432 (codeinventory/dev123456)
+- **Test database**: Port 5433 (codeinventory_test/test123456)
+- **Configuration**: Environment variables in `.env` file
+- **Initialization**: SQL scripts in `init-scripts/` directory
 
 ### Configuration
 - Root directories to scan configured in `appsettings.json` under `CrawlSettings`

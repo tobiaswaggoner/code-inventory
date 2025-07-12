@@ -7,7 +7,11 @@
       "Bash(dotnet add:*)",
       "Bash(dotnet build)",
       "Bash(find:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(mkdir:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

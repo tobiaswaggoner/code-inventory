@@ -61,7 +61,7 @@
 
 -----
 
-#### **Schritt 3: Entitäten des Datenmodells definieren (Aktualisiert)**
+#### **Schritt 3: Entitäten des Datenmodells definieren**
 
 * **Aufgaben:**  
   1. In der CodeInventory.Common-Bibliothek die folgenden C\#-Klassen erstellen:  
