@@ -15,7 +15,10 @@
       "Bash(dotnet ef migrations add:*)",
       "Bash(dotnet tool install:*)",
       "Bash(dotnet ef database update:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(curl:*)",
+      "Bash(timeout:*)",
+      "Bash(dotnet run:*)"
     ],
     "deny": []
   }
