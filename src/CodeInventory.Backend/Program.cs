@@ -1,9 +1,20 @@
+using Microsoft.EntityFrameworkCore;
+using CodeInventory.Backend.Data;
+using CodeInventory.Common.Configuration;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add Entity Framework
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add configuration
+builder.Services.Configure<CrawlSettings>(builder.Configuration.GetSection("CrawlSettings"));
 
 var app = builder.Build();
 
