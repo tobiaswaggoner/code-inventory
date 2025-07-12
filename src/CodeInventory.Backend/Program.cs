@@ -24,6 +24,13 @@ builder.Services.AddSingleton<CrawlTriggerService>();
 builder.Services.AddScoped<ICrawlTriggerService>(provider => provider.GetRequiredService<CrawlTriggerService>());
 builder.Services.AddScoped<IDelayProvider, DelayProvider>();
 
+// Add Git-related services
+builder.Services.AddScoped<IGitCommandService, GitCommandService>();
+builder.Services.AddScoped<IGitLogParser, GitLogParser>();
+builder.Services.AddScoped<IRepositoryScanner, RepositoryScanner>();
+builder.Services.AddScoped<IGitIntegrationService, GitIntegrationService>();
+builder.Services.AddScoped<IRepositoryDataService, RepositoryDataService>();
+
 // Add background services
 builder.Services.AddHostedService<DirectoryCrawlerService>();
 

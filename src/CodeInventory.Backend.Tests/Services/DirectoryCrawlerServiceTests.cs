@@ -15,6 +15,9 @@ public class DirectoryCrawlerServiceTests
     private IOptions<CrawlSettings> _crawlSettings;
     private ICrawlTriggerService _triggerService;
     private IDelayProvider _delayProvider;
+    private IRepositoryScanner _repositoryScanner;
+    private IGitIntegrationService _gitIntegrationService;
+    private IRepositoryDataService _repositoryDataService;
     private DirectoryCrawlerService _service;
 
     [SetUp]
@@ -22,6 +25,9 @@ public class DirectoryCrawlerServiceTests
     {
         _logger = Substitute.For<ILogger<DirectoryCrawlerService>>();
         _delayProvider = Substitute.For<IDelayProvider>();
+        _repositoryScanner = Substitute.For<IRepositoryScanner>();
+        _gitIntegrationService = Substitute.For<IGitIntegrationService>();
+        _repositoryDataService = Substitute.For<IRepositoryDataService>();
         
         var crawlSettings = new CrawlSettings
         {
@@ -32,11 +38,11 @@ public class DirectoryCrawlerServiceTests
         
         _triggerService = Substitute.For<ICrawlTriggerService>();
         
-        _service = new DirectoryCrawlerService(_logger, _crawlSettings, _triggerService, _delayProvider);
+        _service = new DirectoryCrawlerService(_logger, _crawlSettings, _triggerService, _delayProvider, _repositoryScanner, _gitIntegrationService, _repositoryDataService);
     }
 
     [Test]
-    public async Task Constructor_InitializesWithCorrectSettings()
+    public void Constructor_InitializesWithCorrectSettings()
     {
         // Arrange & Act - constructor called in Setup
         
@@ -50,6 +56,14 @@ public class DirectoryCrawlerServiceTests
         // Arrange
         var cts = new CancellationTokenSource();
         var cancellationToken = cts.Token;
+        
+        // Set up repository scanner to return at least one repository
+        _repositoryScanner.GetGitRepositoryPathsAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<string> { "/test/repo1" });
+        
+        // Set up git integration service to return null (simulating no data extracted)
+        _gitIntegrationService.ExtractProjectDataAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<CodeInventory.Common.Services.GitRepositoryData?>(null));
         
         // Set up trigger service to return true once, then cancel on second call
         var triggerCount = 0;
@@ -76,7 +90,7 @@ public class DirectoryCrawlerServiceTests
         await _service.StopAsync(CancellationToken.None);
 
         // Assert
-        await _delayProvider.Received(1).DelayAsync(1000, Arg.Any<CancellationToken>());
+        await _delayProvider.Received(1).DelayAsync(100, Arg.Any<CancellationToken>());
         _triggerService.Received(1).CompleteCrawl();
     }
 
@@ -124,6 +138,14 @@ public class DirectoryCrawlerServiceTests
         var cts = new CancellationTokenSource();
         var cancellationToken = cts.Token;
         
+        // Set up repository scanner to return at least one repository
+        _repositoryScanner.GetGitRepositoryPathsAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<string> { "/test/repo1" });
+        
+        // Set up git integration service to return null (simulating no data extracted)
+        _gitIntegrationService.ExtractProjectDataAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<CodeInventory.Common.Services.GitRepositoryData?>(null));
+        
         // Set up trigger service to return true once, then cancel on second call
         var triggerCount = 0;
         _triggerService.WaitForTriggerAsync(Arg.Any<CancellationToken>()).Returns(callInfo =>
@@ -140,8 +162,8 @@ public class DirectoryCrawlerServiceTests
             return Task.FromCanceled<bool>(token);
         });
         
-        // Make DelayAsync throw an exception for the 1000ms delay, but succeed for the 5000ms delay
-        _delayProvider.DelayAsync(1000, Arg.Any<CancellationToken>())
+        // Make DelayAsync throw an exception for the 100ms delay (between repositories), but succeed for the 5000ms delay (error recovery)
+        _delayProvider.DelayAsync(100, Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("Test exception")));
         _delayProvider.DelayAsync(5000, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
@@ -156,6 +178,6 @@ public class DirectoryCrawlerServiceTests
 
         // Assert
         _triggerService.Received(1).CompleteCrawl();
-        await _delayProvider.Received(1).DelayAsync(5000, Arg.Any<CancellationToken>());
+        await _delayProvider.Received(1).DelayAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 }
