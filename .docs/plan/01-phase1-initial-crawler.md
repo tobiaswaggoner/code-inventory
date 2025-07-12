@@ -61,18 +61,20 @@
 
 -----
 
-#### **Schritt 3: Entitäten des Datenmodells definieren**
+#### **Schritt 3: Entitäten des Datenmodells definieren (Aktualisiert)**
 
-  * **Aufgaben:**
-    1.  In der `CodeInventory.Common`-Bibliothek die folgenden C\#-Klassen (POCOs) für die Entitäten erstellen:
-    2.  **`Author.cs`**:
-          * `Guid Id` (Primary Key)
-          * `string Name`
-          * `string Email` (Eindeutiger Schlüssel für die Identifikation)
-    3.  **`Project.cs`**:
-          * `Guid Id` (Primary Key)
-          * `string Name`
-          * `string FilePath` (Eindeutiger Pfad zum Repository)
+* **Aufgaben:**  
+  1. In der CodeInventory.Common-Bibliothek die folgenden C\#-Klassen erstellen:  
+  2. **Author.cs**:  
+     * Guid Id (Primary Key)  
+     * string Name  
+     * string Email (Eindeutiger Schlüssel für die Identifikation)  
+     * ICollection\<Commit\> Commits  
+  3. **Project.cs**: Repräsentiert das abstrakte Projekt.  
+     * Guid Id (Primary Key)  
+     * string Name (z.B. Name des Repository-Verzeichnisses)  
+     * string InitialCommitSha (**Eindeutiger Schlüssel zur Deduplizierung**)  
+
     4-  **`ProjectLocation`**
           * `Guid Id` (Primary Key)
           * `Guid ProjectId` (Foreign Key)`
@@ -98,7 +100,10 @@
         ```
     2.  Eine `ApplicationDbContext.cs`-Klasse im Backend-Projekt erstellen, die von `DbContext` erbt.
     3.  `DbSet<Project>`, `DbSet<ProjectLocation>`, `DbSet<Commit>` und `DbSet<Author>` als Properties hinzufügen.
-    4.  In `OnModelCreating` die Beziehungen und eindeutigen Schlüssel konfigurieren (z.B. `HasAlternateKey` für `Author.Email`).
+    4. In OnModelCreating die Beziehungen und eindeutigen Schlüssel konfigurieren:  
+        * Project.InitialCommitSha als Alternate Key (HasAlternateKey).  
+        * Author.Email als Alternate Key.  
+        * Beziehungen zwischen den Tabellen definieren.  
     5.  Den Connection-String in `appsettings.json` im Backend-Projekt hinterlegen.
     6.  In `Program.cs` den `DbContext` für die Dependency Injection registrieren (`builder.Services.AddDbContext<ApplicationDbContext>(...)`).
   * **Verifikation:** Das Projekt lässt sich weiterhin kompilieren. Die Konfiguration für den `DbContext` ist vollständig.
@@ -151,13 +156,20 @@
 
 #### **Schritt 8: Crawler-Logik und idempotente Speicherung**
 
-  * **Aufgaben:**
-    1.  Im `DirectoryCrawlerService` die konfigurierten `RootDirectories` auslesen.
-    2.  Für jedes Root-Verzeichnis eine rekursive Suche nach Unterverzeichnissen implementieren, die einen `.git`-Ordner enthalten.
-    3.  Für jedes gefundene Git-Repository (identifiziert durch seinen absoluten Pfad):
-        a. Prüfen, ob in der `ProjectLocation`-Tabelle bereits ein Eintrag mit diesem `FilePath` für den aktuellen Computernamen existiert.
-        b. **Nur wenn kein Eintrag existiert**, ein neues `ProjectLocation` und`Project`-Objekt erstellen  (Name = Verzeichnisname, FilePath = absoluter Pfad) und in der Datenbank speichern.
-  * **Verifikation:** Nach dem Ausführen des Crawlers (`dotnet run -- -execute-crawl`) enthält die `Projects`-Tabelle einen Eintrag für jedes Git-Repository unter den konfigurierten Pfaden. Ein erneuter Lauf fügt keine Duplikate hinzu.
+* **Aufgaben:**  
+  1. Im DirectoryCrawlerService die konfigurierten RootDirectories auslesen und rekursiv nach .git-Verzeichnissen suchen.  
+  2. Für jedes gefundene Git-Repository im Pfad currentPath:  
+     a. Ermittle den initialen Commit-SHA durch Aufruf von GitCliService.GetInitialCommitSha(currentPath). Sei das Ergebnis initialSha. Wenn noch kein existiert, dann das Projekt ignorieren.
+     b. Suche nach dem Projekt in der DB: var existingProject \= \_context.Projects.FirstOrDefault(p \=\> p.InitialCommitSha \== initialSha);  
+     c. Fall A: Projekt existiert bereits (existingProject \!= null):  
+     i. Prüfe, ob eine ProjectLocation für die existingProject.Id und den currentPath bereits existiert.  
+     ii. Wenn nicht: Erstelle ein neues ProjectLocation-Objekt, verknüpfe es mit existingProject.Id und speichere es.  
+     d. Fall B: Projekt ist neu (existingProject \== null):  
+     i. Erstelle ein neues Project-Objekt (Name \= Verzeichnisname, InitialCommitSha \= initialSha).  
+     ii. Erstelle ein neues ProjectLocation-Objekt für den currentPath und den aktuellen Rechnernamen.  
+     iii. Verknüpfe die neue Location mit dem neuen Projekt.  
+     iv. Füge das neue Project (inkl. der Location) dem DbContext zum Speichern hinzu.  
+* **Verifikation:** Ein Repository wird nur einmal als Project angelegt. Jeder Klon an einem neuen Ort erzeugt nur einen neuen ProjectLocation-Eintrag. Ein erneuter Lauf erzeugt keine Duplikate.
 
 ### **EPIC 1.3: Git-Historien-Extraktion**
 
@@ -173,7 +185,9 @@
         a. Startet einen neuen Prozess (`System.Diagnostics.Process`).
         b. Führt `git log --all --pretty=format:"%H|||%an|||%ae|||%aI|||%s" --no-patch` im angegebenen `repositoryPath` aus. Der spezielle Separator `|||` erleichtert das Parsen.
         c. Gibt die Standardausgabe des Prozesses als String zurück.
-    3.  Den Service für DI in `Program.cs` registrieren.
+    3. Eine Methode string GetInitialCommitSha(string repositoryPath) implementieren, die git rev-list \--max-parents=0 HEAD ausführt und den ersten Commit-Hash zurückgibt.  
+    4. Den Service für DI registrieren.  
+    * **Verifikation:** Beide Methoden liefern die erwarteten Ausgaben für ein Test-Repository.
   * **Verifikation:** Der Aufruf von `GetGitLog` für ein Test-Repository liefert einen langen String, der alle Commits im erwarteten Format enthält.
 
 -----
