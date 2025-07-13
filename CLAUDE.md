@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Code Inventory is a .NET 9 application designed to analyze and catalog all software projects across local file systems and remote repositories. The application creates a comprehensive timeline of development activities by extracting Git commit histories and project metadata.
+Code Inventory is a .NET 8 application designed to analyze and catalog all software projects across local file systems and remote repositories. The application creates a comprehensive timeline of development activities by extracting Git commit histories and project metadata.
 
 ## Architecture
 
 The project follows a multi-tier architecture:
 
-- **Backend**: .NET 9 Web API with Background Workers for crawling and analysis
-- **Frontend**: .NET 9 Blazor Server for interactive web interface  
+- **Backend**: .NET 8 Web API with Background Workers for crawling and analysis
+- **Frontend**: .NET 8 Blazor Server for interactive web interface  
 - **Database**: PostgreSQL for storing project metadata and commit histories
-- **Data Access**: Entity Framework Core 9
+- **Data Access**: Entity Framework Core 8
 
 ## Key Concepts
 
@@ -28,6 +28,23 @@ The system uses commit SHA hashes as primary keys to ensure global deduplication
 - Multiple local clones of the same repository
 - Different machines containing the same project
 - Local and remote versions of repositories
+
+## Service Architecture
+
+### Git Services
+- **IGitCommandService**: Executes Git commands with timeout and error handling
+- **IGitLogParser**: Parses Git command output into domain models
+- **IRepositoryScanner**: Recursively scans directories for Git repositories
+- **IGitIntegrationService**: High-level orchestration of Git operations
+- **IRepositoryDataService**: Database operations with deduplication logic
+
+### Background Services
+- **DirectoryCrawlerService**: Background service that processes crawl triggers
+- **ICrawlTriggerService**: Manages crawl execution triggers
+- **IDelayProvider**: Testable delay abstraction for better unit testing
+
+### Dependency Injection
+All services are registered with interfaces for testability and maintainability.
 
 ## Development Commands
 
@@ -79,16 +96,40 @@ PostgreSQL runs via Docker Compose in `infrastructure/docker/`:
 - Remote Git URLs also configured in the same section
 - Environment-specific settings via `.env` files
 
+## Testing Framework
+
+### Test Structure
+- **NUnit** for test framework
+- **NSubstitute** for mocking dependencies
+- **Backend Tests**: Comprehensive coverage of services and Git operations
+- **WebApp Tests**: Basic template tests (to be expanded in Phase 2)
+
+### Test Projects
+- `CodeInventory.Backend.Tests` - Core business logic tests
+- `CodeInventory.WebApp.Tests` - Web interface tests
+
+### Testing Patterns
+- All dependencies are mocked using interfaces
+- Focus on testing core functionality without logger outputs
+- Comprehensive test coverage for Git parsing and integration logic
+
 ## Implementation Phases
 
-### Phase 1: Core Data Collection (MVP)
-- Local file system crawler for Git repositories
-- Git history extraction via command-line interface
-- Basic project and commit storage with deduplication
+### Phase 1: Core Data Collection (MVP) ✅ **COMPLETED**
+- ✅ Local file system crawler for Git repositories
+- ✅ Git history extraction via command-line interface
+- ✅ Complete project and commit storage with deduplication
+- ✅ Background service architecture with trigger mechanism
+- ✅ HTTP API endpoints for crawl management
+- ✅ Comprehensive testing framework
+- ✅ Database migrations and entity relationships
+- ✅ Service-oriented architecture with dependency injection
 
-### Phase 2: Visualization
+### Phase 2: Visualization (IN PROGRESS)
 - Blazor web interface for project overview
 - Global timeline visualization of all commits
+- Project and commit browsing interface
+- Dashboard with statistics and insights
 - Remote repository synchronization
 
 ### Phase 3: Code Analysis
@@ -111,8 +152,31 @@ The application uses command-line Git calls rather than libraries to maximize co
 ### Idempotent Operations
 All crawling and analysis operations are designed to be idempotent - they can be run multiple times without creating duplicates or corrupting existing data.
 
-### Testing Strategy
-- Unit tests (nUnit) for core logic like Git log parsing and deduplication
-- Mocking framework (nSubstitute) for external dependencies
-- Target 70%+ test coverage for critical components
-- No UI or integration tests planned initially
+### Error Handling
+- Comprehensive exception handling in all services
+- Graceful handling of inaccessible directories
+- Detailed logging for debugging and monitoring
+- Service continues processing despite individual repository failures
+
+### Performance Considerations
+- Directory scanning with smart skip logic for common build/cache directories
+- Small delays between repository processing to avoid system overload
+- Scoped service resolution for proper resource management
+
+### HTTP API Endpoints
+The backend provides RESTful endpoints (via Swagger in development):
+- Standard Web API controllers for future dashboard integration
+- Background service management through command-line triggers
+
+## Current Status
+
+**Phase 1 is complete** and the system can successfully:
+1. Scan configured directories for Git repositories
+2. Extract complete Git history from discovered repositories
+3. Store project metadata with global deduplication
+4. Handle errors gracefully without service interruption
+5. Provide detailed logging and statistics
+6. Execute crawls via command-line triggers
+7. Maintain data integrity through proper entity relationships
+
+The foundation is solid for Phase 2 implementation (web visualization) and beyond.
