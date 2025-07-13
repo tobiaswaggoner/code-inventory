@@ -193,4 +193,40 @@ public class RepositoryDataService : IRepositoryDataService
     {
         return await _context.Authors.CountAsync(cancellationToken);
     }
+
+    public async Task<Project?> GetProjectByIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Projects
+            .Include(p => p.Locations)
+            .Include(p => p.Commits)
+            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Project>> GetAllProjectsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Projects
+            .Include(p => p.Locations)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateProjectAnalysisAsync(Guid projectId, string? headline, string? description, byte[]? heroImage, DateTime analysisDate, string? repomixOutput = null, CancellationToken cancellationToken = default)
+    {
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+        
+        if (project == null)
+        {
+            _logger.LogWarning("Project with ID {ProjectId} not found for analysis update", projectId);
+            return;
+        }
+
+        project.Headline = headline;
+        project.Description = description;
+        project.HeroImage = heroImage;
+        project.AnalysisDate = analysisDate.ToUniversalTime();
+        project.RepomixOutput = repomixOutput;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        
+        _logger.LogDebug("Updated analysis data for project {ProjectId}", projectId);
+    }
 }

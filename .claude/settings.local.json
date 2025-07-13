@@ -18,7 +18,9 @@
       "Bash(docker exec:*)",
       "Bash(curl:*)",
       "Bash(timeout:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:ai.google.dev)"
     ],
     "deny": []
   }
