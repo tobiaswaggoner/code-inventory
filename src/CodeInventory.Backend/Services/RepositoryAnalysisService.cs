@@ -69,7 +69,14 @@ public class RepositoryAnalysisService : IRepositoryAnalysisService
             }
 
             result.RepomixOutput = repomixResult.Output;
-            _logger.LogDebug("Repomix generation completed. Token count: {TokenCount}", repomixResult.TokenCount);
+            _logger.LogInformation("Repomix generation completed. Token count: {TokenCount}", repomixResult.TokenCount);
+            
+            if(repomixResult.TokenCount > 400000)
+            {
+                result.IsSuccess = false;
+                result.Error = $"Repomix output exceeds maximum token limit of 400.000. Current: {repomixResult.TokenCount}";
+                return result;
+            }
 
             // Step 2: Generate project description with Gemini
             var descriptionResult = await _geminiApiService.GenerateProjectDescriptionAsync(repomixResult.Output, cancellationToken);
@@ -218,8 +225,10 @@ public class RepositoryAnalysisService : IRepositoryAnalysisService
             _logger.LogInformation("Starting analysis of all repositories");
 
             // Get all projects from database
-            var projects = await _repositoryDataService.GetAllProjectsAsync(cancellationToken);
-            summary.TotalRepositories = projects.Count();
+            var projects = (await _repositoryDataService.GetAllProjectsAsync(cancellationToken))
+                .Where(p => p.AnalysisDate == null)
+                .ToList();
+            summary.TotalRepositories = projects.Count;
 
             foreach (var project in projects)
             {
@@ -314,7 +323,7 @@ public class RepositoryAnalysisService : IRepositoryAnalysisService
             }
 
             // Save hero image
-            if (result.HeroImage != null && result.HeroImage.Length > 0)
+            if (result.HeroImage is { Length: > 0 })
             {
                 var imagePath = Path.Combine(outputDir, "Hero-Image.png");
                 await File.WriteAllBytesAsync(imagePath, result.HeroImage, cancellationToken);

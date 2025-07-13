@@ -50,7 +50,7 @@ public class RepomixService : IRepomixService
             // Run repomix with --compress flag
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = "npx",
+                FileName = "C:\\Program Files\\nodejs\\npx.cmd",
                 Arguments = "repomix --compress",
                 WorkingDirectory = repositoryPath,
                 UseShellExecute = false,
@@ -58,6 +58,8 @@ public class RepomixService : IRepomixService
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
+            
+            EnrichProcessStartInfo(processStartInfo);
 
             var outputBuilder = new StringBuilder();
             var errorBuilder = new StringBuilder();
@@ -129,6 +131,13 @@ public class RepomixService : IRepomixService
                     tokenCount = EstimateTokenCount(repomixContent);
                 }
 
+                if (tokenCount > 250000)
+                {
+                    _logger.LogWarning("Repomix output exceeds token limit: {TokenCount} tokens. Condensing output", tokenCount);
+                    repomixFilePath = repomixContent.Substring(0, 1000000);
+                    tokenCount = EstimateTokenCount(repomixContent);
+                }
+
                 return new RepomixResult
                 {
                     IsSuccess = true,
@@ -169,12 +178,37 @@ public class RepomixService : IRepomixService
             _logger.LogDebug("Creating .repomixignore file at: {Path}", repomixIgnorePath);
 
             var ignorePatterns = new List<string>();
-
+            
             // Add standard exclusions for CSS and map files
             ignorePatterns.Add("**/*.css");
             ignorePatterns.Add("**/*.css.map");
             ignorePatterns.Add("**/*.min.js");
             ignorePatterns.Add("**/*.min.css");
+            ignorePatterns.Add("**/*.prefab");
+            ignorePatterns.Add("**/*.asset");
+            ignorePatterns.Add("**/*.meta");
+            ignorePatterns.Add("**/*.cginc");
+            ignorePatterns.Add("**/*.mat");
+            ignorePatterns.Add("**/*.shader");
+            ignorePatterns.Add("**/*.controller");
+            ignorePatterns.Add("**/*.lighting");
+            ignorePatterns.Add("**/*.shadergraph");
+            ignorePatterns.Add("**/*.obj");
+            ignorePatterns.Add("**/*.renderTexture");
+            ignorePatterns.Add("**/*.*ignore");
+            ignorePatterns.Add("**/*.Designer.cs");
+            ignorePatterns.Add("**/*.anim");
+            ignorePatterns.Add("**/*.unity");
+            ignorePatterns.Add("**/*.svg");
+            ignorePatterns.Add("**/*.scss");
+            ignorePatterns.Add("**/*.fbx");
+            ignorePatterns.Add("**/*.asmdef");
+            ignorePatterns.Add("**/*.scenetemplate");
+            ignorePatterns.Add("**/assets/plugins/**");
+            ignorePatterns.Add("**/assets/oculus/**");
+            ignorePatterns.Add("**/assets/photon/**");
+            ignorePatterns.Add("**/assets/textmesh/**");
+            ignorePatterns.Add("**/.obsidian/**");
 
             // Find and combine all .gitignore files in the repository
             await AddGitIgnoreContentsAsync(repositoryPath, ignorePatterns, cancellationToken);
@@ -214,13 +248,15 @@ public class RepomixService : IRepomixService
         {
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = "npx",
+                FileName = "C:\\Program Files\\nodejs\\npx.cmd",
                 Arguments = "repomix --version",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
+            
+            EnrichProcessStartInfo(processStartInfo);
 
             using var process = new Process();
             process.StartInfo = processStartInfo;
@@ -250,6 +286,31 @@ public class RepomixService : IRepomixService
         }
     }
 
+    private static void EnrichProcessStartInfo(ProcessStartInfo processStartInfo)
+    {
+        // Copy environment variables from the current process
+        foreach (var envVar in Environment.GetEnvironmentVariables())
+        {
+            var entry = (System.Collections.DictionaryEntry)envVar;
+            processStartInfo.Environment[entry.Key?.ToString() ?? ""] = entry.Value?.ToString();
+        }
+            
+        // Add additional paths where npx might be located
+        var paths = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\.npm-global\\bin",
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\AppData\\Roaming\\npm",
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\nodejs"
+        };
+            
+        // Ensure PATH contains the necessary directories
+        var currentPath = processStartInfo.Environment["PATH"] ?? "";
+        processStartInfo.Environment["PATH"] = string.Join(Path.PathSeparator.ToString(), 
+            paths.Where(p => !string.IsNullOrEmpty(p) && Directory.Exists(p))
+                .Concat(new[] { currentPath })
+                .Distinct());
+    }
+
     private async Task AddGitIgnoreContentsAsync(string repositoryPath, List<string> ignorePatterns, CancellationToken cancellationToken)
     {
         try
@@ -265,10 +326,17 @@ public class RepomixService : IRepomixService
 
                 try
                 {
+                    var gitIgnorePath = Path.GetDirectoryName(gitIgnoreFile)![repositoryPath.Length..];
+                    if (!string.IsNullOrEmpty(gitIgnorePath))
+                    {
+                        gitIgnorePath = "." + Path.DirectorySeparatorChar + gitIgnorePath.TrimStart(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                    }
+                    
+                    gitIgnorePath = gitIgnorePath.Replace("\\", "/"); // Normalize path for ignore patterns
                     var lines = await File.ReadAllLinesAsync(gitIgnoreFile, cancellationToken);
                     var validLines = lines
                         .Where(line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("#"))
-                        .Select(line => line.Trim());
+                        .Select(line => gitIgnorePath + line.Trim().TrimStart('/'));
                     
                     ignorePatterns.AddRange(validLines);
                 }

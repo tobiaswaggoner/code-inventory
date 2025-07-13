@@ -9,6 +9,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Parse command line arguments early
 var commandLineArgs = Environment.GetCommandLineArgs();
 
+// Read .env
+builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddEnvironmentVariables()
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddUserSecrets<Program>(optional: true)
+    .AddEnvFile(".env")
+    .AddCommandLine(commandLineArgs);
+
+
 // Add services to the container.
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -63,7 +74,7 @@ if (shouldTriggerCrawl)
     });
 }
 
-if (shouldAnalyzeRepositories)
+if (shouldAnalyzeRepositories || true)
 {
     // Analyze all repositories after app starts
     _ = Task.Run(async () =>

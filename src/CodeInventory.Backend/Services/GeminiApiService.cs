@@ -133,21 +133,13 @@ Create only the prompt and nothing else";
 
             var requestBody = new
             {
-                contents = new[]
+                instances = new[]
                 {
-                    new
-                    {
-                        parts = new[]
-                        {
-                            new { text = imagePrompt }
-                        }
-                    }
+                    new { prompt = imagePrompt }
                 },
-                responseModalities = new[] { "TEXT", "IMAGE" },
-                generationConfig = new
+                parameters = new
                 {
-                    responseSchemaType = "IMAGE",
-                    aspectRatio = "16:9"
+                    sampleCount = 1,
                 }
             };
 
@@ -156,10 +148,11 @@ Create only the prompt and nothing else";
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
 
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrl}/models/{_settings.ImageModel}:generateContent?key={_settings.ApiKey}")
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrl}/models/{_settings.ImageModel}:predict")
             {
                 Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
             };
+            request.Headers.Add("x-goog-api-key", _settings.ApiKey);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -179,30 +172,22 @@ Create only the prompt and nothing else";
             var responseJson = JsonSerializer.Deserialize<JsonElement>(responseContent);
             
             // Extract base64 image data from response
-            if (responseJson.TryGetProperty("candidates", out var candidates) &&
-                candidates.EnumerateArray().FirstOrDefault().TryGetProperty("content", out var content) &&
-                content.TryGetProperty("parts", out var parts))
+            if (responseJson.TryGetProperty("predictions", out var predictions) &&
+                predictions.EnumerateArray().FirstOrDefault().TryGetProperty("bytesBase64Encoded", out var content))
             {
-                foreach (var part in parts.EnumerateArray())
+                var base64Data = content.GetString();
+                if (!string.IsNullOrEmpty(base64Data))
                 {
-                    if (part.TryGetProperty("inlineData", out var inlineData) &&
-                        inlineData.TryGetProperty("data", out var imageDataElement))
+                    var imageBytes = Convert.FromBase64String(base64Data);
+                    
+                    _logger.LogInformation("Successfully generated image with {ByteCount} bytes", imageBytes.Length);
+                    
+                    return new GeminiImageResult
                     {
-                        var base64Data = imageDataElement.GetString();
-                        if (!string.IsNullOrEmpty(base64Data))
-                        {
-                            var imageBytes = Convert.FromBase64String(base64Data);
-                            
-                            _logger.LogInformation("Successfully generated image with {ByteCount} bytes", imageBytes.Length);
-                            
-                            return new GeminiImageResult
-                            {
-                                IsSuccess = true,
-                                ImageData = imageBytes,
-                                MimeType = "image/png"
-                            };
-                        }
-                    }
+                        IsSuccess = true,
+                        ImageData = imageBytes,
+                        MimeType = "image/png"
+                    };
                 }
             }
 
@@ -257,10 +242,11 @@ Create only the prompt and nothing else";
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
 
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrl}/models/{_settings.TextModel}:generateContent?key={_settings.ApiKey}")
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrl}/models/{_settings.TextModel}:generateContent")
             {
                 Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
             };
+            request.Headers.Add("x-goog-api-key", _settings.ApiKey);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
