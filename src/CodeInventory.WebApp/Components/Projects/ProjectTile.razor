@@ -1,0 +1,75 @@
+@using CodeInventory.WebApp.Models
+@using CodeInventory.WebApp.Services
+@using Markdig
+@inject IProjectService ProjectService
+@inject IJSRuntime JSRuntime
+
+<div class="project-tile" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave">
+    <div class="project-tile-background" style="@BackgroundStyle"></div>
+    <div class="project-tile-content">
+        <div class="project-tile-overlay">
+            <h5 class="project-tile-title">@Project.Headline</h5>
+            <small class="project-tile-name">@Project.Name</small>
+        </div>
+    </div>
+    
+    @if (IsHovered && !string.IsNullOrEmpty(Project.Description))
+    {
+        <div class="project-description-overlay">
+            <div class="project-description-content">
+                @((MarkupString)MarkdownToHtml(Project.Description))
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public ProjectSummaryDto Project { get; set; } = null!;
+    
+    private bool IsHovered { get; set; }
+    private string BackgroundStyle { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBackgroundImage();
+    }
+
+    private async Task LoadBackgroundImage()
+    {
+        if (Project.HasHeroImage)
+        {
+            try
+            {
+                var imageBytes = await ProjectService.GetProjectImageAsync(Project.Id);
+                if (imageBytes != null)
+                {
+                    var base64String = Convert.ToBase64String(imageBytes);
+                    BackgroundStyle = $"background-image: url(data:image/png;base64,{base64String});";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't show to user
+                Console.WriteLine($"Error loading image for project {Project.Id}: {ex.Message}");
+            }
+        }
+    }
+
+    private void OnMouseEnter()
+    {
+        IsHovered = true;
+    }
+
+    private void OnMouseLeave()
+    {
+        IsHovered = false;
+    }
+
+    private string MarkdownToHtml(string markdown)
+    {
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .Build();
+        return Markdown.ToHtml(markdown, pipeline);
+    }
+}

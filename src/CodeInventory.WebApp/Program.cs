@@ -1,10 +1,18 @@
 using CodeInventory.WebApp.Components;
+using CodeInventory.WebApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Configure HttpClient for API calls
+builder.Services.AddHttpClient<IProjectService, ProjectService>(client =>
+{
+    // In development, the backend runs on a different port
+    client.BaseAddress = new Uri(builder.Configuration.GetValue<string>("BackendUrl") ?? "https://localhost:7234");
+});
 
 var app = builder.Build();
 

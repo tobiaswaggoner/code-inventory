@@ -1,0 +1,62 @@
+@using CodeInventory.WebApp.Models
+@using CodeInventory.WebApp.Services
+@inject IProjectService ProjectService
+
+<div class="project-grid-container">
+    @if (IsLoading)
+    {
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading projects...</p>
+        </div>
+    }
+    else if (Projects.Any())
+    {
+        <div class="project-grid">
+            @foreach (var project in Projects)
+            {
+                <ProjectTile Project="project" />
+            }
+        </div>
+    }
+    else
+    {
+        <div class="no-projects-message">
+            <div class="alert alert-info">
+                <h4>No Projects Found</h4>
+                <p>No projects have been analyzed yet. Run the crawler to discover and analyze projects.</p>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ProjectSummaryDto> Projects { get; set; } = new();
+    private bool IsLoading { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            IsLoading = true;
+            var projects = await ProjectService.GetProjectsAsync();
+            Projects = projects.ToList();
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't show to user
+            Console.WriteLine($"Error loading projects: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
