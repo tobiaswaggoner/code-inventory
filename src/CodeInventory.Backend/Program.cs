@@ -74,7 +74,7 @@ if (shouldTriggerCrawl)
     });
 }
 
-if (shouldAnalyzeRepositories || true)
+if (shouldAnalyzeRepositories)
 {
     // Analyze all repositories after app starts
     _ = Task.Run(async () =>
