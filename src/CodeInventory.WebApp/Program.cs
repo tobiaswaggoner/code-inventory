@@ -1,4 +1,5 @@
 using CodeInventory.WebApp.Components;
+using CodeInventory.WebApp.Controllers;
 using CodeInventory.WebApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddControllers();
 
 // Configure HttpClient for API calls
 builder.Services.AddHttpClient<IProjectService, ProjectService>(client =>
@@ -25,6 +28,8 @@ var app = builder.Build();
 // }
 //
 // app.UseHttpsRedirection();
+
+app.MapControllers();
 
 app.UseStaticFiles();
 app.UseAntiforgery();

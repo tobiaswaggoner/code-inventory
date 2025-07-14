@@ -74,7 +74,7 @@ if (shouldTriggerCrawl)
     });
 }
 
-if (shouldAnalyzeRepositories)
+if (shouldAnalyzeRepositories || true)
 {
     // Analyze all repositories after app starts
     _ = Task.Run(async () =>
@@ -127,15 +127,14 @@ if (!string.IsNullOrEmpty(analyzePath))
         }
     });
 }
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
+//
+// // Configure the HTTP request pipeline.
+// if (app.Environment.IsDevelopment())
+// {
+     app.UseSwagger();
+     app.UseSwaggerUI();
+// }
+// app.UseHttpsRedirection();
 
 app.MapControllers();
 
