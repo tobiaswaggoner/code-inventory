@@ -72,7 +72,10 @@ h1:focus {
     cursor: pointer;
 }
 
-/* Hover effect handled by Blazor Server state management */
+.project-tile:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
 
 .project-tile-background {
     position: absolute;
@@ -85,25 +88,6 @@ h1:focus {
     background-repeat: no-repeat;
     background-color: #f8f9fa;
     z-index: 1;
-}
-
-.project-tile-background-placeholder {
-    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-}
-
-.project-tile-hovered {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.project-tile-image-loaded .project-tile-background {
-    opacity: 1;
-    transition: opacity 0.3s ease;
-}
-
-.project-overlay-visible {
-    opacity: 1;
-    visibility: visible;
 }
 
 .project-tile-content {
@@ -144,15 +128,8 @@ h1:focus {
     color: white;
     padding: 20px;
     overflow-y: auto;
+    animation: fadeIn 0.3s ease;
     z-index: 10;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.project-description-overlay.project-overlay-visible {
-    opacity: 1;
-    visibility: visible;
 }
 
 .project-description-content {
@@ -206,7 +183,14 @@ h1:focus {
     padding: 50px;
 }
 
-/* Animation removed - using CSS transitions for better Blazor Server compatibility */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
 
 /* Responsive Design */
 @media (max-width: 768px) {

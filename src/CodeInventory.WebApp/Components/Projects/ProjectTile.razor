@@ -5,16 +5,8 @@
 @inject IJSRuntime JSRuntime
 @inject ILogger<ProjectTile> Logger
 
-<div class="project-tile @GetTileClasses()" @key="@Project.Id" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave">
-    @if (!string.IsNullOrEmpty(ImageDataUri))
-    {
-        <div class="project-tile-background" style="background-image: url(@ImageDataUri);"></div>
-    }
-    else
-    {
-        <div class="project-tile-background project-tile-background-placeholder"></div>
-    }
-    
+<div class="project-tile" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave">
+    <div class="project-tile-background" style="@BackgroundStyle"></div>
     <div class="project-tile-content">
         <div class="project-tile-overlay">
             <h5 class="project-tile-title">@Project.Headline</h5>
@@ -24,7 +16,7 @@
     
     @if (IsHovered && !string.IsNullOrEmpty(Project.Description))
     {
-        <div class="project-description-overlay @GetOverlayClasses()" @key="@($"overlay-{Project.Id}")">
+        <div class="project-description-overlay">
             <div class="project-description-content">
                 @((MarkupString)MarkdownToHtml(Project.Description))
             </div>
@@ -36,7 +28,7 @@
     [Parameter] public ProjectSummaryDto Project { get; set; } = null!;
     
     private bool IsHovered { get; set; }
-    private string ImageDataUri { get; set; } = "";
+    private string BackgroundStyle { get; set; } = "";
     private bool IsImageLoaded { get; set; }
 
     protected override async Task OnInitializedAsync()
@@ -55,64 +47,44 @@
                 if (imageBytes != null && imageBytes.Length > 0)
                 {
                     var base64String = Convert.ToBase64String(imageBytes);
-                    ImageDataUri = $"data:image/png;base64,{base64String}";
+                    BackgroundStyle = $"background-image: url(data:image/png;base64,{base64String});";
                     IsImageLoaded = true;
                     Logger.LogDebug("Image loaded successfully for project {ProjectId}", Project.Id);
-                    
-                    // Force re-render with InvokeAsync to ensure client update
-                    await InvokeAsync(StateHasChanged);
                 }
                 else
                 {
                     Logger.LogWarning("No image data received for project {ProjectId}", Project.Id);
-                    ImageDataUri = "";
-                    await InvokeAsync(StateHasChanged);
+                    BackgroundStyle = "background-color: #e9ecef;";
                 }
+                
+                // Force re-render to show the loaded image
+                StateHasChanged();
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error loading image for project {ProjectId}", Project.Id);
-                ImageDataUri = "";
-                await InvokeAsync(StateHasChanged);
+                BackgroundStyle = "background-color: #e9ecef;";
+                StateHasChanged();
             }
+        }
+        else
+        {
+            BackgroundStyle = "background-color: #e9ecef;";
         }
     }
 
-    private async Task OnMouseEnter()
+    private void OnMouseEnter()
     {
         Logger.LogDebug("Mouse enter for project {ProjectId}", Project.Id);
         IsHovered = true;
-        await InvokeAsync(StateHasChanged);
+        StateHasChanged();
     }
 
-    private async Task OnMouseLeave()
+    private void OnMouseLeave()
     {
         Logger.LogDebug("Mouse leave for project {ProjectId}", Project.Id);
         IsHovered = false;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private string GetTileClasses()
-    {
-        var classes = new List<string>();
-        
-        if (IsHovered)
-        {
-            classes.Add("project-tile-hovered");
-        }
-        
-        if (IsImageLoaded)
-        {
-            classes.Add("project-tile-image-loaded");
-        }
-        
-        return string.Join(" ", classes);
-    }
-
-    private string GetOverlayClasses()
-    {
-        var classes = new List<string> { "project-overlay-visible" };
-        return string.Join(" ", classes);
+        StateHasChanged();
     }
 
     private string MarkdownToHtml(string markdown)
