@@ -135,22 +135,25 @@ PostgreSQL runs via Docker Compose in `infrastructure/docker/`:
 - ✅ CLI commands for repository analysis
 - ✅ Debug file output for manual inspection
 
-### Phase 3: Visualization (PLANNED)
-- Blazor web interface for project overview
-- Global timeline visualization of all commits
-- Project and commit browsing interface
+### Phase 3: Visualization (IN PROGRESS)
+- ✅ Blazor web interface for project overview
+- ✅ Display of AI-generated project descriptions and images
+- Add Tags to the project data (many tags per project like C#, Unity, .NET, etc.)
+- Add Category to the project (One Category per project: Private, Work, etc.)
+- Add State to the (One State per project: Experiment, In Progress, Usable, Obsolete, etc.)
+- Add start end end date to project - extract from commit history + latest file change date
+- Display Tags, Categoriesm State, start, end within the tiles of the project overview
+- Add filter and grouping to the project overview. 
+- Group by either state, Category or Tag
+- Filter: One search bar with fulltext search and syntax like "tag:xxx AND state:yyy" (keywords and selectors)
+- Global timeline visualization of all commits. Apply the same filter as within the overview page
+- Add commit overview (list view, endless scroller) as overlay when clicking on a project in the overview
 - Dashboard with statistics and insights
-- Display of AI-generated project descriptions and images
-- Remote repository synchronization
 
-### Phase 3: Code Analysis
-- Technology stack detection (frameworks, languages)
-- Project classification and metadata extraction
-- AI-powered content analysis
-
-### Phase 4: Time Tracking Integration
+### Phase 4: Include more data (PLANNED)
 - ManicTime data integration for actual time spent analysis
 - Correlation between tracked time and project activity
+- Create code history by checking out each commit squentially and running cloc (lines of code per type per commit plus delta to previous commit - do not use git LOC count - we want to split by type (c#/ ts, ...))
 
 ## Technical Notes
 
