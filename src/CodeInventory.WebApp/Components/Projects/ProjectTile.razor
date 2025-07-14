@@ -3,7 +3,6 @@
 @using Markdig
 @inject IProjectService ProjectService
 @inject IJSRuntime JSRuntime
-@inject ILogger<ProjectTile> Logger
 
 <div class="project-tile" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave">
     <div class="project-tile-background" style="@BackgroundStyle"></div>
@@ -29,7 +28,6 @@
     
     private bool IsHovered { get; set; }
     private string BackgroundStyle { get; set; } = "";
-    private bool IsImageLoaded { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -42,64 +40,36 @@
         {
             try
             {
-                Logger.LogDebug("Loading image for project {ProjectId}", Project.Id);
                 var imageBytes = await ProjectService.GetProjectImageAsync(Project.Id);
-                if (imageBytes != null && imageBytes.Length > 0)
+                if (imageBytes != null)
                 {
                     var base64String = Convert.ToBase64String(imageBytes);
                     BackgroundStyle = $"background-image: url(data:image/png;base64,{base64String});";
-                    IsImageLoaded = true;
-                    Logger.LogDebug("Image loaded successfully for project {ProjectId}", Project.Id);
                 }
-                else
-                {
-                    Logger.LogWarning("No image data received for project {ProjectId}", Project.Id);
-                    BackgroundStyle = "background-color: #e9ecef;";
-                }
-                
-                // Force re-render to show the loaded image
-                StateHasChanged();
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error loading image for project {ProjectId}", Project.Id);
-                BackgroundStyle = "background-color: #e9ecef;";
-                StateHasChanged();
+                // Log error but don't show to user
+                Console.WriteLine($"Error loading image for project {Project.Id}: {ex.Message}");
             }
-        }
-        else
-        {
-            BackgroundStyle = "background-color: #e9ecef;";
         }
     }
 
     private void OnMouseEnter()
     {
-        Logger.LogDebug("Mouse enter for project {ProjectId}", Project.Id);
         IsHovered = true;
-        StateHasChanged();
     }
 
     private void OnMouseLeave()
     {
-        Logger.LogDebug("Mouse leave for project {ProjectId}", Project.Id);
         IsHovered = false;
-        StateHasChanged();
     }
 
     private string MarkdownToHtml(string markdown)
     {
-        try
-        {
-            var pipeline = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
-                .Build();
-            return Markdown.ToHtml(markdown, pipeline);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error converting markdown to HTML for project {ProjectId}", Project.Id);
-            return markdown; // Return raw markdown as fallback
-        }
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .Build();
+        return Markdown.ToHtml(markdown, pipeline);
     }
 }

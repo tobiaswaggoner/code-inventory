@@ -87,7 +87,6 @@ h1:focus {
     background-position: center;
     background-repeat: no-repeat;
     background-color: #f8f9fa;
-    z-index: 1;
 }
 
 .project-tile-content {
@@ -97,13 +96,11 @@ h1:focus {
     right: 0;
     background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
     padding: 40px 20px 20px;
-    z-index: 2;
 }
 
 .project-tile-overlay {
     color: white;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    z-index: 3;
 }
 
 .project-tile-title {
@@ -129,7 +126,6 @@ h1:focus {
     padding: 20px;
     overflow-y: auto;
     animation: fadeIn 0.3s ease;
-    z-index: 10;
 }
 
 .project-description-content {
