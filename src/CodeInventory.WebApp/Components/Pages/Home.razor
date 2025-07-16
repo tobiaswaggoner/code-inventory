@@ -1,0 +1,20 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using CodeInventory.WebApp.Components.Projects
+
+<PageTitle>Code Inventory</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Code Inventory</h1>
+            <p class="lead">Discover and explore all your software projects</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <ProjectGrid />
+        </div>
+    </div>
+</div>

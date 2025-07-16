@@ -1,0 +1,6 @@
+@CodeInventory.Backend_HostAddress = http://localhost:5158
+
+GET {{CodeInventory.Backend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

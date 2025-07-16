@@ -1,0 +1,55 @@
+@using CodeInventory.WebApp.Models
+@using CodeInventory.WebApp.Services
+@using Markdig
+@inject IProjectService ProjectService
+@inject IJSRuntime JSRuntime
+
+<div class="project-tile" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave">
+    <div class="project-tile-background"  style="@BackgroundStyle"></div>
+    <div class="project-tile-content">
+        <div class="project-tile-overlay">
+            <h5 class="project-tile-title">@Project.Headline</h5>
+            <small class="project-tile-name">@Project.Name</small>
+        </div>
+    </div>
+    
+    @if (IsHovered && !string.IsNullOrEmpty(Project.Description))
+    {
+        <div class="project-description-overlay">
+            <div class="project-description-content">
+                @((MarkupString)MarkdownToHtml(Project.Description))
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public ProjectSummaryDto Project { get; set; } = null!;
+    
+    private bool IsHovered { get; set; }
+
+    private string BackgroundStyle
+    {
+        get => !Project.HasHeroImage ? "background-color:red;" : $"background-image: url(/image/{Project.Id.ToString()});";
+    }
+
+    private void OnMouseEnter()
+    {
+        IsHovered = true;
+        StateHasChanged();
+    }
+
+    private void OnMouseLeave()
+    {
+        IsHovered = false;
+        StateHasChanged();
+    }
+
+    private string MarkdownToHtml(string markdown)
+    {
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .Build();
+        return Markdown.ToHtml(markdown, pipeline);
+    }
+}
